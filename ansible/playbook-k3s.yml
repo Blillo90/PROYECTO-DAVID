@@ -1,0 +1,24 @@
+- name: Instalar K3s en master
+  hosts: master
+  tasks:
+    - name: Instalar K3s server
+      shell: curl -sfL https://get.k3s.io | sh -
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Obtener token
+      command: cat /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+- name: Instalar K3s en workers
+  hosts: workers
+  vars:
+    token: "{{ hostvars[groups['master'][0]].k3s_token.stdout }}"
+  tasks:
+    - name: Instalar K3s agent
+      shell: |
+        curl -sfL https://get.k3s.io | \
+        K3S_URL=https://{{ hostvars[groups['master'][0]].ansible_host }}:6443 \
+        K3S_TOKEN={{ token }} sh -
+      args:
+        creates: /usr/local/bin/k3s-agent
